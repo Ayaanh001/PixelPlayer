@@ -46,6 +46,8 @@
     <string name="presentation_batch_e_create_playlist_subtitle">Choose the creation flow.</string>
     <string name="presentation_batch_e_creation_mode_manual">Manual</string>
     <string name="presentation_batch_e_creation_mode_manual_subtitle">Design artwork, icon, shape and pick songs yourself.</string>
+    <string name="presentation_batch_e_creation_mode_folder">From Folder</string>
+    <string name="presentation_batch_e_creation_mode_folder_subtitle">Create a dynamic playlist from a local folder.</string>
     <string name="presentation_batch_e_creation_mode_ai">With AI</string>
     <string name="presentation_batch_e_creation_mode_ai_subtitle_enabled">Generate a curated playlist with advanced controls.</string>
     <string name="presentation_batch_e_creation_mode_ai_subtitle_disabled">Requires a Gemini API key configured in settings.</string>

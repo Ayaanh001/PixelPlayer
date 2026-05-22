@@ -297,6 +297,7 @@ class PlaylistViewModel @Inject constructor(
         coverShapeDetail2: Float? = null,
         coverShapeDetail3: Float? = null,
         coverShapeDetail4: Float? = null,
+        customId: String? = null,
         source: String = "LOCAL", // Mark source
         smartRuleKey: String? = null
     ) {
@@ -316,7 +317,7 @@ class PlaylistViewModel @Inject constructor(
             }
 
             val resolvedSmartRule = SmartPlaylistRule.fromStorageKey(smartRuleKey)
-            val resolvedSongIds = if (resolvedSmartRule != null) {
+            var resolvedSongIds = if (resolvedSmartRule != null) {
                 buildSmartPlaylistSongIds(
                     rule = resolvedSmartRule,
                     limit = SMART_PLAYLIST_MAX_ITEMS
@@ -324,8 +325,19 @@ class PlaylistViewModel @Inject constructor(
             } else {
                 songIds
             }
+
+            if (customId?.startsWith(FOLDER_PLAYLIST_PREFIX) == true && resolvedSongIds.isEmpty()) {
+                val folderPath = Uri.decode(customId.removePrefix(FOLDER_PLAYLIST_PREFIX))
+                val folders = musicRepository.getMusicFolders().first()
+                val folder = findFolder(folderPath, folders)
+                if (folder != null) {
+                    resolvedSongIds = folder.collectAllSongs().map { it.id }
+                }
+            }
+
             val resolvedSource = when {
                 resolvedSmartRule != null && source == "LOCAL" -> "SMART"
+                customId?.startsWith(FOLDER_PLAYLIST_PREFIX) == true -> "FOLDER"
                 else -> source
             }
 
@@ -342,6 +354,7 @@ class PlaylistViewModel @Inject constructor(
                 coverShapeDetail2 = coverShapeDetail2,
                 coverShapeDetail3 = coverShapeDetail3,
                 coverShapeDetail4 = coverShapeDetail4,
+                customId = customId,
                 source = resolvedSource
             )
             _playlistCreationEvent.emit(true)

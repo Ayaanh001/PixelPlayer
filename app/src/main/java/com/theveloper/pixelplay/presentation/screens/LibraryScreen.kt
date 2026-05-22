@@ -1754,11 +1754,19 @@ fun LibraryScreen(
 
 
 
+    var initialPlaylistCreationMode by remember { mutableStateOf(PlaylistCreationMode.MANUAL) }
+
     PlaylistCreationTypeDialog(
         visible = showPlaylistCreationTypeDialog,
         onDismiss = { showPlaylistCreationTypeDialog = false },
         onManualSelected = {
             showPlaylistCreationTypeDialog = false
+            initialPlaylistCreationMode = PlaylistCreationMode.MANUAL
+            showCreatePlaylistDialog = true
+        },
+        onFolderSelected = {
+            showPlaylistCreationTypeDialog = false
+            initialPlaylistCreationMode = PlaylistCreationMode.FOLDER
             showCreatePlaylistDialog = true
         },
         onAiSelected = {
@@ -1779,6 +1787,7 @@ fun LibraryScreen(
     CreatePlaylistDialog(
         visible = showCreatePlaylistDialog,
         onDismiss = { showCreatePlaylistDialog = false },
+        initialMode = initialPlaylistCreationMode,
         onGenerateClick = {
             showCreatePlaylistDialog = false
             if (hasActiveAiProviderApiKey) {
@@ -1788,7 +1797,7 @@ fun LibraryScreen(
                 Toast.makeText(context, context.getString(R.string.toast_set_gemini_api_key_first), Toast.LENGTH_SHORT).show()
             }
         },
-        onCreate = { name, imageUri, color, icon, songIds, cropScale, cropPanX, cropPanY, shapeType, d1, d2, d3, d4, smartRuleKey ->
+        onCreate = { name, imageUri, color, icon, songIds, cropScale, cropPanX, cropPanY, shapeType, d1, d2, d3, d4, smartRuleKey, customId ->
             playlistViewModel.createPlaylist(
                 name = name,
                 coverImageUri = imageUri,
@@ -1805,7 +1814,8 @@ fun LibraryScreen(
                 coverShapeDetail2 = d2,
                 coverShapeDetail3 = d3,
                 coverShapeDetail4 = d4,
-                smartRuleKey = smartRuleKey
+                smartRuleKey = smartRuleKey,
+                customId = customId
             )
         }
     )

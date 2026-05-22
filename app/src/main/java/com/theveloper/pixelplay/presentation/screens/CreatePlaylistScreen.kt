@@ -43,6 +43,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
@@ -55,6 +57,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.MicExternalOn
@@ -92,6 +95,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -119,10 +124,11 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.theveloper.pixelplay.data.model.Song
+import com.theveloper.pixelplay.data.model.MusicFolder
 import com.theveloper.pixelplay.presentation.components.ImageCropView
 import com.theveloper.pixelplay.data.model.PlaylistShapeType
 import com.theveloper.pixelplay.data.model.SmartPlaylistRule
-// import com.theveloper.pixelplay.presentation.screens.ShapeType // Removed local enum
+import com.theveloper.pixelplay.presentation.viewmodel.PlaylistViewModel.Companion.FOLDER_PLAYLIST_PREFIX
 import com.theveloper.pixelplay.presentation.components.SongPickerSelectionPane
 import com.theveloper.pixelplay.ui.theme.GoogleSansRounded
 import androidx.compose.material3.Slider
@@ -141,6 +147,7 @@ import androidx.compose.ui.graphics.Matrix
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
@@ -170,6 +177,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.theveloper.pixelplay.R
 import com.theveloper.pixelplay.presentation.screens.TabAnimation
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 
 data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
@@ -195,9 +204,10 @@ private fun smartPlaylistRuleSubtitle(rule: SmartPlaylistRule): String =
         }
     )
 
-private enum class PlaylistCreationMode {
+enum class PlaylistCreationMode {
     MANUAL,
-    SMART
+    SMART,
+    FOLDER
 }
 
 @Composable
@@ -205,7 +215,8 @@ fun CreatePlaylistDialog(
     visible: Boolean,
     onDismiss: () -> Unit,
     onGenerateClick: () -> Unit,
-    onCreate: (String, String?, Int?, String?, List<String>, Float, Float, Float, String?, Float?, Float?, Float?, Float?, String?) -> Unit
+    initialMode: PlaylistCreationMode = PlaylistCreationMode.MANUAL,
+    onCreate: (String, String?, Int?, String?, List<String>, Float, Float, Float, String?, Float?, Float?, Float?, Float?, String?, String?) -> Unit
 ) {
     val transitionState = remember { MutableTransitionState(false) }
     transitionState.targetState = visible
@@ -225,6 +236,7 @@ fun CreatePlaylistDialog(
                 label = "create_playlist_dialog"
             ) {
                 CreatePlaylistContent(
+                    initialMode = initialMode,
                     onDismiss = onDismiss,
                     onGenerateClick = onGenerateClick,
                     onCreate = onCreate
@@ -289,12 +301,14 @@ fun EditPlaylistDialog(
 @OptIn(UnstableApi::class)
 @Composable
 private fun CreatePlaylistContent(
+    initialMode: PlaylistCreationMode = PlaylistCreationMode.MANUAL,
     onDismiss: () -> Unit,
     onGenerateClick: () -> Unit,
-    onCreate: (String, String?, Int?, String?, List<String>, Float, Float, Float, String?, Float?, Float?, Float?, Float?, String?) -> Unit,
+    onCreate: (String, String?, Int?, String?, List<String>, Float, Float, Float, String?, Float?, Float?, Float?, Float?, String?, String?) -> Unit,
     playerViewModel: PlayerViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val playerUiState by playerViewModel.playerUiState.collectAsStateWithLifecycle()
 
     // Shared State
     var playlistName by remember { mutableStateOf("") }
@@ -302,8 +316,9 @@ private fun CreatePlaylistContent(
     // Step 1: Info State
     var currentStep by remember { mutableStateOf(0) } // 0: Info, 1: Songs
     var selectedTab by remember { mutableStateOf(0) } // 0: Default, 1: Image, 2: Icon
-    var creationMode by remember { mutableStateOf(PlaylistCreationMode.MANUAL) }
+    var creationMode by remember { mutableStateOf(initialMode) }
     var selectedSmartRule by remember { mutableStateOf(SmartPlaylistRule.TOP_PLAYED) }
+    var selectedFolder by remember { mutableStateOf<MusicFolder?>(null) }
     
     // Songs State
     val selectedSongIds = remember { mutableStateMapOf<String, Boolean>() }
@@ -454,7 +469,8 @@ private fun CreatePlaylistContent(
                     },
                     onClick = {
                         if (currentStep == 0) {
-                            if (playlistName.isNotBlank()) {
+                            val canProceed = playlistName.isNotBlank() && (creationMode != PlaylistCreationMode.FOLDER || selectedFolder != null)
+                            if (canProceed) {
                                 if (creationMode == PlaylistCreationMode.MANUAL) {
                                     currentStep = 1
                                 } else {
@@ -475,6 +491,10 @@ private fun CreatePlaylistContent(
                                         }
                                     } else Quadruple(null, null, null, null)
 
+                                    val customId = if (creationMode == PlaylistCreationMode.FOLDER) {
+                                        selectedFolder?.let { "${FOLDER_PLAYLIST_PREFIX}${Uri.encode(it.path)}" }
+                                    } else null
+
                                     onCreate(
                                         playlistName,
                                         imageUriString,
@@ -486,7 +506,8 @@ private fun CreatePlaylistContent(
                                         panY,
                                         shapeTypeForSave,
                                         d1, d2, d3, d4,
-                                        selectedSmartRule.storageKey
+                                        selectedSmartRule.storageKey,
+                                        customId
                                     )
                                 }
                             }
@@ -519,6 +540,7 @@ private fun CreatePlaylistContent(
                                 panY,
                                 shapeTypeForSave,
                                 d1, d2, d3, d4,
+                                null,
                                 null
                             )
                         }
@@ -528,8 +550,14 @@ private fun CreatePlaylistContent(
                     modifier = Modifier
                         .padding(bottom = 8.dp, end = 8.dp)
                         .height(56.dp), // Standard height, feels substantial
-                    containerColor = if (currentStep == 0 && playlistName.isBlank()) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = if (currentStep == 0 && playlistName.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onTertiaryContainer,
+                    containerColor = run {
+                        val isInvalid = currentStep == 0 && (playlistName.isBlank() || (creationMode == PlaylistCreationMode.FOLDER && selectedFolder == null))
+                        if (isInvalid) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.tertiaryContainer
+                    },
+                    contentColor = run {
+                        val isInvalid = currentStep == 0 && (playlistName.isBlank() || (creationMode == PlaylistCreationMode.FOLDER && selectedFolder == null))
+                        if (isInvalid) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onTertiaryContainer
+                    },
                 )
             }
         },
@@ -628,6 +656,7 @@ private fun CreatePlaylistContent(
                                 panY,
                                 shapeTypeForSave,
                                 d1, d2, d3, d4,
+                                null,
                                 null
                             )
                         },
@@ -700,6 +729,14 @@ private fun CreatePlaylistContent(
                      onCreationModeChange = { creationMode = it },
                      selectedSmartRule = selectedSmartRule,
                      onSmartRuleChange = { selectedSmartRule = it },
+                     selectedFolder = selectedFolder,
+                     onFolderChange = { 
+                         selectedFolder = it
+                         if (playlistName.isBlank()) {
+                             playlistName = it.name
+                         }
+                     },
+                     musicFolders = playerUiState.musicFolders,
                      onGenerateClick = onGenerateClick,
                      onImageUriChange = { selectedImageUri = it }
                  )
@@ -937,6 +974,9 @@ fun EditPlaylistContent(
              onCreationModeChange = { },
              selectedSmartRule = SmartPlaylistRule.TOP_PLAYED,
              onSmartRuleChange = { },
+             selectedFolder = null,
+             onFolderChange = { },
+             musicFolders = persistentListOf(),
              onImageUriChange = { selectedImageUri = it }
          )
     }
@@ -982,6 +1022,9 @@ private fun PlaylistFormContent(
     onCreationModeChange: (PlaylistCreationMode) -> Unit,
     selectedSmartRule: SmartPlaylistRule,
     onSmartRuleChange: (SmartPlaylistRule) -> Unit,
+    selectedFolder: MusicFolder? = null,
+    onFolderChange: (MusicFolder) -> Unit = {},
+    musicFolders: ImmutableList<MusicFolder> = persistentListOf(),
     onGenerateClick: (() -> Unit)? = null,
     onImageUriChange: (Uri?) -> Unit
 ) {
@@ -1281,16 +1324,23 @@ private fun PlaylistFormContent(
                     SegmentedButton(
                         selected = creationMode == PlaylistCreationMode.MANUAL,
                         onClick = { onCreationModeChange(PlaylistCreationMode.MANUAL) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
                     ) {
                         Text(stringResource(R.string.presentation_batch_f_creation_mode_manual))
                     }
                     SegmentedButton(
                         selected = creationMode == PlaylistCreationMode.SMART,
                         onClick = { onCreationModeChange(PlaylistCreationMode.SMART) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3)
                     ) {
                         Text(stringResource(R.string.presentation_batch_f_creation_mode_smart))
+                    }
+                    SegmentedButton(
+                        selected = creationMode == PlaylistCreationMode.FOLDER,
+                        onClick = { onCreationModeChange(PlaylistCreationMode.FOLDER) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3)
+                    ) {
+                        Text(stringResource(R.string.presentation_batch_f_creation_mode_folder))
                     }
                 }
             }
@@ -1350,6 +1400,59 @@ private fun PlaylistFormContent(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+
+            AnimatedVisibility(visible = creationMode == PlaylistCreationMode.FOLDER) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 22.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.presentation_batch_f_select_folder),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    val flattenedFolders = remember(musicFolders) { flattenFolders(musicFolders) }
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    ) {
+                        items(flattenedFolders) { folder ->
+                            val isSelected = selectedFolder?.path == folder.path
+                            ListItem(
+                                modifier = Modifier.clickable { onFolderChange(folder) },
+                                headlineContent = { Text(folder.name) },
+                                supportingContent = { Text(folder.path, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                leadingContent = {
+                                    Icon(
+                                        Icons.Rounded.Folder,
+                                        contentDescription = null,
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                trailingContent = {
+                                    if (isSelected) {
+                                        Icon(
+                                            Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                },
+                                colors = ListItemDefaults.colors(
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
+                                )
+                            )
+                        }
+                    }
                 }
             }
 
@@ -1721,6 +1824,13 @@ fun ThickSlider(
 
 fun getThemeContentColor(colorArgb: Int, scheme: androidx.compose.material3.ColorScheme): Color {
     return resolvePlaylistCoverContentColor(colorArgb, scheme)
+}
+
+private fun flattenFolders(folders: List<MusicFolder>): List<MusicFolder> {
+    return folders.flatMap { folder ->
+        val current = if (folder.songs.isNotEmpty()) listOf(folder) else emptyList()
+        current + flattenFolders(folder.subFolders)
+    }
 }
 
 // End of file

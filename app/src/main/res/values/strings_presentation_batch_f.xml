@@ -61,6 +61,8 @@
     <string name="presentation_batch_f_adjust_cover_hint">Use pinch and drag gestures to find the perfect framing</string>
     <string name="presentation_batch_f_creation_mode_manual">Manual</string>
     <string name="presentation_batch_f_creation_mode_smart">Smart</string>
+    <string name="presentation_batch_f_creation_mode_folder">Folder</string>
+    <string name="presentation_batch_f_select_folder">Select Folder</string>
     <string name="presentation_batch_f_generate_with_ai">Generate with AI</string>
     <string name="presentation_batch_f_smart_rule">Smart Rule</string>
     <string name="presentation_batch_f_tab_default">Default</string>

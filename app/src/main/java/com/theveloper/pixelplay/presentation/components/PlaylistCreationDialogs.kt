@@ -94,6 +94,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material.icons.rounded.Folder
 import com.theveloper.pixelplay.ui.theme.GoogleSansRounded
 import android.content.res.Resources
 import kotlin.math.max
@@ -109,6 +110,7 @@ fun PlaylistCreationTypeDialog(
     visible: Boolean,
     onDismiss: () -> Unit,
     onManualSelected: () -> Unit,
+    onFolderSelected: () -> Unit,
     onAiSelected: () -> Unit,
     isAiEnabled: Boolean = true,
     onSetupAiClick: (() -> Unit)? = null
@@ -177,6 +179,22 @@ fun PlaylistCreationTypeDialog(
                     enabled = true,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+
+                CreationModeCard(
+                    title = stringResource(R.string.presentation_batch_e_creation_mode_folder),
+                    subtitle = stringResource(R.string.presentation_batch_e_creation_mode_folder_subtitle),
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    },
+                    onClick = onFolderSelected,
+                    enabled = true,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
 
                 CreationModeCard(

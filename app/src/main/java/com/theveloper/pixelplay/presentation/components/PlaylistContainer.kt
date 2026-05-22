@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Topic
 import androidx.compose.material3.BasicAlertDialog
@@ -493,6 +494,15 @@ fun PlaylistItem(
                             painter = painterResource(R.drawable.ic_navidrome),
                             contentDescription = "Navidrome",
                             tint = Color.Unspecified,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    if (playlist.source == "FOLDER") {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.Folder,
+                            contentDescription = "Folder Playlist",
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
