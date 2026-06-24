@@ -46,6 +46,8 @@ import androidx.compose.ui.res.stringResource
 import com.theveloper.pixelplay.R
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
+import androidx.compose.ui.graphics.vector.ImageVector
+
 private val buttonHeight = 44.dp
 private val segmentedOuterCornerRadius = 26.dp
 private val segmentedInnerCornerRadius = 8.dp
@@ -63,7 +65,9 @@ fun SelectionActionRow(
     onSelectAll: () -> Unit,
     onDeselect: () -> Unit,
     onOptionsClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    optionsIcon: ImageVector = Icons.Rounded.MoreVert,
+    optionsButtonModifier: Modifier = Modifier.width(36.dp)
 ) {
     val leftSegmentShape = AbsoluteSmoothCornerShape(
         cornerRadiusTL = segmentedOuterCornerRadius,
@@ -172,10 +176,10 @@ fun SelectionActionRow(
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ),
             contentPadding = PaddingValues(horizontal = 2.dp),
-            modifier = Modifier.height(buttonHeight).width(36.dp)
+            modifier = Modifier.height(buttonHeight).then(optionsButtonModifier)
         ) {
             Icon(
-                imageVector = Icons.Rounded.MoreVert,
+                imageVector = optionsIcon,
                 contentDescription = stringResource(R.string.library_selection_more_options),
                 modifier = Modifier.size(20.dp)
             )

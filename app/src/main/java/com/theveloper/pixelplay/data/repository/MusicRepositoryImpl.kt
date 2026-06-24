@@ -967,7 +967,7 @@ class MusicRepositoryImpl @Inject constructor(
         lyricsRepository.resetAllLyrics()
     }
 
-    override fun getMusicFolders(storageFilter: StorageFilter): Flow<List<MusicFolder>> {
+    override fun getMusicFolders(storageFilter: StorageFilter, ignoreBlockList: Boolean): Flow<List<MusicFolder>> {
         return combine(
             userPreferencesRepository.allowedDirectoriesFlow,
             userPreferencesRepository.blockedDirectoriesFlow,
@@ -976,8 +976,8 @@ class MusicRepositoryImpl @Inject constructor(
         ) { allowedDirs, blockedDirs, isFolderFilterActive, folderSource ->
             FolderFlowConfig(
                 allowedDirs = allowedDirs,
-                blockedDirs = blockedDirs,
-                isFolderFilterActive = isFolderFilterActive,
+                blockedDirs = if (ignoreBlockList) emptySet() else blockedDirs,
+                isFolderFilterActive = if (ignoreBlockList) false else isFolderFilterActive,
                 folderSource = folderSource
             )
         }.flatMapLatest { config ->

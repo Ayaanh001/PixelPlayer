@@ -35,7 +35,8 @@ class FolderNavigationStateHolder @Inject constructor() {
         updateUiState: (((PlayerUiState) -> PlayerUiState) -> Unit),
         onFolderChanged: (String) -> Unit
     ) {
-        val storageRootPath = getUiState().folderSourceRootPath.ifBlank {
+        val state = getUiState()
+        val storageRootPath = state.folderSourceRootPath.ifBlank {
             Environment.getExternalStorageDirectory().path
         }
         if (path == storageRootPath) {
@@ -48,7 +49,8 @@ class FolderNavigationStateHolder @Inject constructor() {
             return
         }
 
-        val folder = findFolder(path, getUiState().musicFolders)
+        // Search in all folders to ensure we can navigate even if some parts are hidden (management mode)
+        val folder = findFolder(path, state.allMusicFolders.ifEmpty { state.musicFolders })
         if (folder != null) {
             updateUiState {
                 it.copy(
@@ -81,7 +83,7 @@ class FolderNavigationStateHolder @Inject constructor() {
             return
         }
 
-        val parentFolder = findFolder(parentPath, state.musicFolders)
+        val parentFolder = findFolder(parentPath, state.allMusicFolders.ifEmpty { state.musicFolders })
         updateUiState {
             it.copy(
                 currentFolderPath = parentPath,
@@ -115,7 +117,7 @@ class FolderNavigationStateHolder @Inject constructor() {
         }
     }
 
-    private fun findFolder(path: String?, folders: List<MusicFolder>): MusicFolder? {
+    internal fun findFolder(path: String?, folders: List<MusicFolder>): MusicFolder? {
         if (path == null) return null
         val queue = ArrayDeque(folders)
         while (queue.isNotEmpty()) {

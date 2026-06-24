@@ -94,7 +94,7 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
+            applicationIdSuffix = ".debug1"
         }
 
         release {

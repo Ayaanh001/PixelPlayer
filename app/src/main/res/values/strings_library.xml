@@ -32,6 +32,11 @@
     <string name="library_toast_max_albums_selection">You can select up to %1$d albums</string>
     <string name="library_folder_name_fallback">Folder</string>
     <string name="library_cd_folder">Folder</string>
+    <string name="library_folders_menu_hide_folders">Hide folders</string>
+    <string name="library_folders_hide_folders_title">Hide Folders</string>
+    <string name="library_folders_hide_folders_description">Hidden folders and their music will be excluded from your library. You can manage them in Music Management settings.</string>
+    <string name="library_folders_hide_folders_toast">Folders hidden successfully</string>
+    <string name="multi_selection_folders_count_upper">%1$d FOLDERS</string>
 
     <!-- Library Sort & View Bottom Sheet -->
     <string name="library_sort_by_title">Sort by</string>

@@ -325,7 +325,8 @@ interface MusicRepository {
     suspend fun resetAllLyrics()
 
     fun getMusicFolders(
-        storageFilter: com.theveloper.pixelplay.data.model.StorageFilter = com.theveloper.pixelplay.data.model.StorageFilter.ALL
+        storageFilter: com.theveloper.pixelplay.data.model.StorageFilter = com.theveloper.pixelplay.data.model.StorageFilter.ALL,
+        ignoreBlockList: Boolean = false
     ): Flow<List<com.theveloper.pixelplay.data.model.MusicFolder>>
 
     suspend fun deleteById(id: Long)

@@ -17,6 +17,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,8 +41,11 @@ import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Dataset
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -58,7 +62,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,6 +100,7 @@ fun LibraryActionRow(
     isPlaylistTab: Boolean,
     onImportM3uClick: () -> Unit = {},
     isFoldersTab: Boolean,
+    showBreadcrumbs: Boolean = false,
     modifier: Modifier = Modifier,
     // Breadcrumb parameters
     currentFolder: MusicFolder?,
@@ -105,9 +112,12 @@ fun LibraryActionRow(
     // Storage Filter
     showStorageFilterButton: Boolean = false,
     currentStorageFilter: com.theveloper.pixelplay.data.model.StorageFilter = com.theveloper.pixelplay.data.model.StorageFilter.ALL,
-    onStorageFilterClick: () -> Unit = {}
+    onStorageFilterClick: () -> Unit = {},
+    // Folder specific actions
+    onHideFoldersClick: () -> Unit = {}
 ) {
     val shouldShowImport = isPlaylistTab && showImportButton
+    var showFolderMenu by remember { mutableStateOf(false) }
 
     Row(
         modifier = modifier
@@ -117,10 +127,10 @@ fun LibraryActionRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         AnimatedContent(
-            targetState = isFoldersTab,
+            targetState = showBreadcrumbs,
             label = "ActionRowContent",
             transitionSpec = {
-                if (targetState) { // Transition to Folders (Breadcrumbs)
+                if (targetState) { // Transition to Breadcrumbs
                     slideInVertically { height -> height } + fadeIn() togetherWith
                             slideOutVertically { height -> -height } + fadeOut()
                 } else { // Transition to other tabs (Buttons)
@@ -129,8 +139,8 @@ fun LibraryActionRow(
                 }
             },
             modifier = Modifier.weight(1f)
-        ) { isFolders ->
-            if (isFolders) {
+        ) { isBreadcrumbs ->
+            if (isBreadcrumbs) {
                 Breadcrumbs(
                     currentFolder = currentFolder,
                     rootPath = folderRootPath,
@@ -388,8 +398,8 @@ fun LibraryActionRow(
                     shape = RoundedCornerShape(
                         topStart = sortStartCorner,
                         bottomStart = sortStartCorner,
-                        topEnd = outerCorner,
-                        bottomEnd = outerCorner
+                        topEnd = if (isFoldersTab) 8.dp else outerCorner,
+                        bottomEnd = if (isFoldersTab) 8.dp else outerCorner
                     ),
                     modifier = Modifier.size(genHeight)
                 ) {
@@ -397,6 +407,48 @@ fun LibraryActionRow(
                         imageVector = Icons.AutoMirrored.Rounded.Sort,
                         contentDescription = stringResource(R.string.library_cd_sort_options),
                     )
+                }
+
+                if (isFoldersTab) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Box {
+                        FilledTonalIconButton(
+                            onClick = { showFolderMenu = true },
+                            shape = RoundedCornerShape(
+                                topStart = 8.dp,
+                                bottomStart = 8.dp,
+                                topEnd = outerCorner,
+                                bottomEnd = outerCorner
+                            ),
+                            modifier = Modifier.size(genHeight)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreVert,
+                                contentDescription = stringResource(R.string.library_selection_more_options)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showFolderMenu,
+                            onDismissRequest = { showFolderMenu = false },
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.library_folders_menu_hide_folders)) },
+                                onClick = {
+                                    showFolderMenu = false
+                                    onHideFoldersClick()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_folder),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

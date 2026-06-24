@@ -64,6 +64,9 @@ class LibraryStateHolder @Inject constructor(
     private val _musicFolders = MutableStateFlow<ImmutableList<MusicFolder>>(persistentListOf())
     val musicFolders = _musicFolders.asStateFlow()
 
+    private val _allMusicFolders = MutableStateFlow<ImmutableList<MusicFolder>>(persistentListOf())
+    val allMusicFolders = _allMusicFolders.asStateFlow()
+
     private val _isLoadingLibrary = MutableStateFlow(false)
     val isLoadingLibrary = _isLoadingLibrary.asStateFlow()
 
@@ -307,13 +310,31 @@ class LibraryStateHolder @Inject constructor(
 
         foldersJob = scope?.launch {
             @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-            effectiveStorageFilter.flatMapLatest { filter ->
+            val foldersFlow = effectiveStorageFilter.flatMapLatest { filter ->
                 musicRepository.getMusicFolders(effectiveFoldersStorageFilter(filter))
-            }.conflate().collect { folders ->
-                val sortedFolders = withContext(Dispatchers.Default) {
-                    sortFoldersList(folders, _currentFolderSortOption.value).toImmutableList()
+            }.conflate()
+
+            @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+            val allFoldersFlow = effectiveStorageFilter.flatMapLatest { filter ->
+                musicRepository.getMusicFolders(effectiveFoldersStorageFilter(filter), ignoreBlockList = true)
+            }.conflate()
+
+            launch {
+                foldersFlow.collect { folders ->
+                    val sortedFolders = withContext(Dispatchers.Default) {
+                        sortFoldersList(folders, _currentFolderSortOption.value).toImmutableList()
+                    }
+                    _musicFolders.value = sortedFolders
                 }
-                _musicFolders.value = sortedFolders
+            }
+
+            launch {
+                allFoldersFlow.collect { folders ->
+                    val sortedFolders = withContext(Dispatchers.Default) {
+                        sortFoldersList(folders, _currentFolderSortOption.value).toImmutableList()
+                    }
+                    _allMusicFolders.value = sortedFolders
+                }
             }
         }
     }

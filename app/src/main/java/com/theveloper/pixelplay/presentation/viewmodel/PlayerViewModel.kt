@@ -1816,19 +1816,23 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 libraryStateHolder.musicFolders,
+                libraryStateHolder.allMusicFolders,
                 libraryStateHolder.isLoadingLibrary,
                 libraryStateHolder.isLoadingCategories,
-            ) { folders, loadingLibrary, loadingCategories ->
-                Triple(folders, loadingLibrary, loadingCategories)
-            }.collect { (folders, loadingLibrary, loadingCategories) ->
-                _playerUiState.update {
-                    it.copy(
+            ) { folders, allFolders, loadingLibrary, loadingCategories ->
+                _playerUiState.update { state ->
+                    val updatedCurrentFolder = state.currentFolderPath?.let { path ->
+                        folderNavigationStateHolder.findFolder(path, allFolders)
+                    }
+                    state.copy(
                         musicFolders = folders,
+                        allMusicFolders = allFolders,
+                        currentFolder = updatedCurrentFolder,
                         isLoadingInitialSongs = loadingLibrary,
                         isLoadingLibraryCategories = loadingCategories,
                     )
                 }
-            }
+            }.collect {}
         }
 
         // Sync sort options and storage filter
@@ -1861,6 +1865,18 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             userPreferencesRepository.hideLocalMediaFlow.collect { hide ->
                 _playerUiState.update { it.copy(hideLocalMedia = hide) }
+            }
+        }
+
+        viewModelScope.launch {
+            userPreferencesRepository.isFoldersPlaylistViewFlow.collect { isPlaylistView ->
+                _playerUiState.update { it.copy(isFoldersPlaylistView = isPlaylistView) }
+            }
+        }
+
+        viewModelScope.launch {
+            userPreferencesRepository.folderBackGestureNavigationFlow.collect { enabled ->
+                _playerUiState.update { it.copy(folderBackGestureNavigationEnabled = enabled) }
             }
         }
 
@@ -2513,6 +2529,9 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    val blockedDirectories = userPreferencesRepository.blockedDirectoriesFlow
+    val allowedDirectories = userPreferencesRepository.allowedDirectoriesFlow
+
     fun navigateToFolder(path: String) {
         folderNavigationStateHolder.navigateToFolder(
             path = path,
@@ -2529,6 +2548,20 @@ class PlayerViewModel @Inject constructor(
                 )
             }
         )
+    }
+
+    fun updateHiddenFolders(newHiddenPaths: Set<String>) {
+        viewModelScope.launch {
+            val currentAllowed = userPreferencesRepository.allowedDirectoriesFlow.first().toMutableSet()
+            
+            // Clean up allowed list: Remove any that are now hidden, or are children of hidden ones
+            newHiddenPaths.forEach { hiddenPath ->
+                currentAllowed.removeAll { it == hiddenPath || it.startsWith("$hiddenPath/") }
+            }
+            
+            userPreferencesRepository.updateDirectorySelections(currentAllowed, newHiddenPaths)
+            sendToast(context.getString(R.string.library_folders_hide_folders_toast))
+        }
     }
 
     fun navigateBackFolder() {

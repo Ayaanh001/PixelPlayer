@@ -32,7 +32,8 @@ internal fun LibraryPlaybackAwareSongItem(
     isSelectionMode: Boolean = false,
     onLongPress: () -> Unit = {},
     onMoreOptionsClick: (Song) -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    customShape: androidx.compose.ui.graphics.Shape? = null
 ) {
     val playbackUiState by remember(song.id, playerViewModel) {
         playerViewModel.stablePlayerState
@@ -52,6 +53,7 @@ internal fun LibraryPlaybackAwareSongItem(
         isCurrentSong = playbackUiState.isCurrentSong,
         isLoading = false,
         albumArtSize = albumArtSize,
+        customShape = customShape,
         isSelected = isSelected,
         selectionIndex = selectionIndex,
         isSelectionMode = isSelectionMode,

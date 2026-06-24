@@ -16,4 +16,15 @@ data class MusicFolder(
     val totalSubFolderCount: Int by lazy {
         subFolders.size + subFolders.sumOf { it.totalSubFolderCount }
     }
+
+    fun collectAllSongs(): List<Song> {
+        return songs + subFolders.flatMap { it.collectAllSongs() }
+    }
+}
+
+fun Iterable<MusicFolder>.flattenFolders(includeEmpty: Boolean = false): List<MusicFolder> {
+    return flatMap { folder ->
+        val current = if (includeEmpty || folder.songs.isNotEmpty()) listOf(folder) else emptyList()
+        current + folder.subFolders.flattenFolders(includeEmpty)
+    }
 }
