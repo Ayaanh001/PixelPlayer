@@ -4,6 +4,7 @@ package com.theveloper.pixelplay.presentation.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -19,15 +20,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -36,63 +41,131 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Done
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOff
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MediumExtendedFloatingActionButton
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFlexibleTopAppBar
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.MediumExtendedFloatingActionButton
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
-import com.theveloper.pixelplay.R
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.activity.compose.BackHandler
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import com.theveloper.pixelplay.R
 import com.theveloper.pixelplay.presentation.screens.TabAnimation
 import com.theveloper.pixelplay.presentation.viewmodel.DirectoryEntry
+import com.theveloper.pixelplay.presentation.viewmodel.SettingsViewModel
 import com.theveloper.pixelplay.ui.theme.GoogleSansRounded
 import com.theveloper.pixelplay.ui.theme.LocalShowScrollbar
 import com.theveloper.pixelplay.utils.StorageInfo
+import kotlinx.coroutines.launch
 import java.io.File
+
+@Composable
+fun FileExplorerScreen(
+    navController: NavController,
+    settingsViewModel: SettingsViewModel = hiltViewModel()
+) {
+    val currentPath by settingsViewModel.currentPath.collectAsStateWithLifecycle()
+    val directoryChildren by settingsViewModel.currentDirectoryChildren.collectAsStateWithLifecycle()
+    val availableStorages by settingsViewModel.availableStorages.collectAsStateWithLifecycle()
+    val selectedStorageIndex by settingsViewModel.selectedStorageIndex.collectAsStateWithLifecycle()
+    val isLoading by settingsViewModel.isLoadingDirectories.collectAsStateWithLifecycle()
+    val isPriming by settingsViewModel.isExplorerPriming.collectAsStateWithLifecycle()
+    val isReady by settingsViewModel.isExplorerReady.collectAsStateWithLifecycle()
+    val isCurrentDirectoryResolved by settingsViewModel.isCurrentDirectoryResolved.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        settingsViewModel.openExplorer()
+    }
+
+    val explorerRoot = remember(availableStorages, selectedStorageIndex) {
+        settingsViewModel.explorerRoot()
+    }
+    
+    val isAtRoot = settingsViewModel.isAtRoot()
+
+    BackHandler(enabled = !isAtRoot) {
+        settingsViewModel.navigateUp()
+    }
+
+    FileExplorerContent(
+        currentPath = currentPath,
+        directoryChildren = directoryChildren,
+        availableStorages = availableStorages,
+        selectedStorageIndex = selectedStorageIndex,
+        isLoading = isLoading,
+        isPriming = isPriming,
+        isReady = isReady,
+        isCurrentDirectoryResolved = isCurrentDirectoryResolved,
+        isAtRoot = isAtRoot,
+        rootDirectory = explorerRoot,
+        onNavigateTo = settingsViewModel::loadDirectory,
+        onNavigateUp = settingsViewModel::navigateUp,
+        onNavigateHome = { settingsViewModel.loadDirectory(explorerRoot) },
+        onToggleAllowed = settingsViewModel::toggleDirectoryAllowed,
+        onRefresh = settingsViewModel::refreshExplorer,
+        onStorageSelected = settingsViewModel::selectStorage,
+        onDone = {
+            settingsViewModel.applyPendingDirectoryRuleChanges()
+            navController.popBackStack()
+        },
+        onDismiss = {
+            settingsViewModel.applyPendingDirectoryRuleChanges()
+            navController.popBackStack()
+        },
+        modifier = Modifier.fillMaxSize()
+    )
+}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -142,7 +215,7 @@ fun FileExplorerDialog(
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow
+                    color = MaterialTheme.colorScheme.surface
                 ) {
                     FileExplorerContent(
                         currentPath = currentPath,
@@ -192,75 +265,74 @@ fun FileExplorerContent(
     onStorageSelected: (Int) -> Unit,
     onDone: () -> Unit,
     onDismiss: () -> Unit,
-    title: String = "Excluded folders",
+    title: String = stringResource(R.string.settings_excluded_directories_title),
     leadingContent: @Composable (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    val safeSelectedStorageIndex = remember(availableStorages, selectedStorageIndex) {
-        if (availableStorages.isEmpty()) {
-            0
-        } else {
-            selectedStorageIndex.coerceIn(0, availableStorages.lastIndex)
-        }
-    }
-    val showLoadingState = remember(
-        directoryChildren,
-        isLoading,
-        isPriming,
-        isReady,
-        isCurrentDirectoryResolved
-    ) {
-        directoryChildren.isEmpty() && (
-            isLoading || isPriming || !isReady || !isCurrentDirectoryResolved
-        )
-    }
-    val loadingMessage = remember(isPriming, isReady) {
-        if (isPriming || !isReady) {
-            "Preparing folders…"
-        } else {
-            "Loading folders…"
-        }
-    }
-    val loadingHint = remember(isPriming, isReady) {
-        if (isPriming || !isReady) {
-            "This can take a moment while PixelPlay scans the available subfolders."
-        } else {
-            null
+
+    val statusBarHeight: Dp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val minTopBarHeight: Dp = 64.dp + statusBarHeight
+    val maxTopBarHeight: Dp = 160.dp + statusBarHeight
+
+    val minTopBarHeightPx: Float = with(density) { minTopBarHeight.toPx() }
+    val maxTopBarHeightPx: Float = with(density) { maxTopBarHeight.toPx() }
+
+    val topBarHeight = remember { Animatable(maxTopBarHeightPx) }
+    var collapseFraction by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(topBarHeight.value) {
+        val totalRange: Float = maxTopBarHeightPx - minTopBarHeightPx
+        if (totalRange > 0.0f) {
+            val progress = (topBarHeight.value - minTopBarHeightPx) / totalRange
+            collapseFraction = (1.0f - progress).coerceIn(0.0f, 1.0f)
         }
     }
 
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                val newHeight = (topBarHeight.value + delta).coerceIn(minTopBarHeightPx, maxTopBarHeightPx)
+                coroutineScope.launch { topBarHeight.snapTo(newHeight) }
+                return if (newHeight > minTopBarHeightPx && newHeight < maxTopBarHeightPx) Offset(0f, delta) else Offset.Zero
+            }
+        }
+    }
+
+    val safeSelectedStorageIndex = remember(availableStorages, selectedStorageIndex) {
+        if (availableStorages.isEmpty()) 0 else selectedStorageIndex.coerceIn(0, availableStorages.lastIndex)
+    }
+    val showLoadingState = remember(directoryChildren, isLoading, isPriming, isReady, isCurrentDirectoryResolved) {
+        directoryChildren.isEmpty() && (isLoading || isPriming || !isReady || !isCurrentDirectoryResolved)
+    }
+    val loadingMessage = remember(isPriming, isReady) {
+        if (isPriming || !isReady) "Preparing folders…" else "Loading folders…"
+    }
+    val loadingHint = remember(isPriming, isReady) {
+        if (isPriming || !isReady) "This can take a moment while PixelPlay scans the available subfolders." else null
+    }
+
+    val titleMaxLines = remember(collapseFraction) { if (collapseFraction < 0.5f) 2 else 1 }
+
     Scaffold(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = modifier.nestedScroll(nestedScrollConnection),
+        containerColor = Color.Transparent,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = title,
-                        fontFamily = GoogleSansRounded,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 22.sp,
-//                            textGeometricTransform = TextGeometricTransform(scaleX = 1.2f),
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                },
-                navigationIcon = {
-                    FilledIconButton(
-                        modifier = Modifier.padding(start = 6.dp),
-                        onClick = onDismiss,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = stringResource(R.string.common_close)
-                        )
+            CollapsibleCommonTopBar(
+                title = title,
+                collapseFraction = collapseFraction,
+                headerHeight = with(density) { topBarHeight.value.toDp() },
+                onBackClick = {
+                    if (!isAtRoot) {
+                        onNavigateUp()
+                    } else {
+                        onDismiss()
                     }
                 },
+                maxLines = titleMaxLines,
                 actions = {
                     FilledIconButton(
                         modifier = Modifier.padding(end = 6.dp),
@@ -306,8 +378,7 @@ fun FileExplorerContent(
             // Only show storage tabs if there's more than one storage
             if (availableStorages.size > 1) {
                 PrimaryTabRow(
-                    modifier = Modifier
-                        .fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     selectedTabIndex = safeSelectedStorageIndex,
                     containerColor = Color.Transparent,
                     indicator = {
@@ -340,14 +411,33 @@ fun FileExplorerContent(
                 }
             }
 
-            Text(
-                text = stringResource(R.string.file_explorer_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
-                    .padding(top = 10.dp)
                     .padding(horizontal = 18.dp)
-            )
+                    .padding(top = 8.dp, bottom = 2.dp)
+                    .fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.file_explorer_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
 
             FileExplorerHeader(
                 modifier = Modifier.padding(horizontal = 18.dp),
@@ -388,7 +478,6 @@ fun FileExplorerContent(
                             LazyColumn(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    // Padding horizontal moved to parent Box
                                     .clip(
                                         RoundedCornerShape(
                                             topEnd = 20.dp,
@@ -429,7 +518,7 @@ fun FileExplorerContent(
                             brush = Brush.verticalGradient(
                                 listOf(
                                     Color.Transparent,
-                                    MaterialTheme.colorScheme.surfaceContainerLow
+                                    MaterialTheme.colorScheme.surface
                                 )
                             )
                         )
@@ -519,9 +608,7 @@ private fun FileExplorerItem(
     onToggleAllowed: () -> Unit,
     navigationEnabled: Boolean
 ) {
-    val shape = RoundedCornerShape(18.dp)
-
-    val isAllowed = !isBlocked
+    val shape = RoundedCornerShape(24.dp)
 
     val containerColor = if (isBlocked) {
         MaterialTheme.colorScheme.errorContainer
@@ -554,7 +641,7 @@ private fun FileExplorerItem(
         Box(
             modifier = Modifier
                 .size(44.dp)
-                .clip(shape)
+                .clip(RoundedCornerShape(14.dp))
                 .background(containerColor),
             contentAlignment = Alignment.Center
         ) {
@@ -587,7 +674,7 @@ private fun FileExplorerItem(
             )
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(badgeColor.copy(alpha = 0.16f))
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
@@ -652,8 +739,8 @@ private fun FileExplorerHeader(
     // 1. Cambiamos ScrollState por LazyListState para manejar mejor los ítems y el scroll automático
     val listState = rememberLazyListState()
 
-    val breadcrumbs by remember(currentPath, rootDirectory) {
-        mutableStateOf(buildList {
+    val breadcrumbs = remember(currentPath, rootDirectory) {
+        buildList {
             var cursor: File? = currentPath
             val rootPath = rootDirectory.path
             while (cursor != null) {
@@ -662,7 +749,7 @@ private fun FileExplorerHeader(
                 cursor = cursor.parentFile
             }
             reverse()
-        })
+        }
     }
 
     val rootLabel = remember(rootDirectory) {
@@ -685,22 +772,6 @@ private fun FileExplorerHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Botón de "Atrás" (Back Arrow) - Se mantiene igual fuera del scroll
-            if (!isAtRoot && navigationEnabled) {
-                IconButton(
-                    onClick = onNavigateUp,
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(R.string.file_explorer_cd_navigate_up),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-
             if (!isAtRoot) {
                 // 3. Auto-scroll al final cuando cambia el path
                 LaunchedEffect(breadcrumbs.size) {

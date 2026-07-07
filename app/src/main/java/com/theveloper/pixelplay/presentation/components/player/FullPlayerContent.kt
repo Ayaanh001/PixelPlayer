@@ -336,7 +336,7 @@ fun FullPlayerContent(
             showFetchLyricsDialog = true
         } else {
             // Si hay letra, mostramos el sheet directamente
-            showLyricsSheet = true
+            showLyricsSheet = !showLyricsSheet
         }
     }
 
@@ -917,7 +917,55 @@ fun FullPlayerContent(
                     albumCoverSection = albumCoverSection,
                     songMetadataSection = landscapeSongMetadataSection,
                     playerProgressSection = playerProgressSection,
-                    controlsSection = controlsSection
+                    controlsSection = controlsSection,
+                    lyricsSection = if (showLyricsSheet) {
+                        {
+                            LyricsSheet(
+                                stablePlayerStateFlow = playerViewModel.stablePlayerState,
+                                playbackPositionFlow = playerViewModel.currentPlaybackPosition,
+                                lyricsSearchUiState = lyricsSearchUiState,
+                                resetLyricsForCurrentSong = {
+                                    showLyricsSheet = false
+                                    playerViewModel.resetLyricsForCurrentSong()
+                                },
+                                onSearchLyrics = { forcePick -> playerViewModel.fetchLyricsForCurrentSong(forcePick) },
+                                onPickResult = { playerViewModel.acceptLyricsSearchResultForCurrentSong(it) },
+                                onManualSearch = { title, artist -> playerViewModel.searchLyricsManually(title, artist) },
+                                onImportLyrics = { filePickerLauncher.launch(com.theveloper.pixelplay.utils.LyricsImportSecurity.pickerMimeTypes()) },
+                                onDismissLyricsSearch = { playerViewModel.resetLyricsSearchState() },
+                                lyricsSyncOffset = lyricsSyncOffset,
+                                onLyricsSyncOffsetChange = { currentSong?.id?.let { songId -> playerViewModel.setLyricsSyncOffset(songId, it) } },
+                                // Use the platform default font (fontFamily = null) for lyrics so extended
+                                // Unicode glyphs (e.g. Icelandic æ ð þ) render instead of tofu. The bundled
+                                // Google Sans Rounded variable font drops these codepoints at runtime. (#2427)
+                                lyricsTextStyle = MaterialTheme.typography.titleLarge.copy(fontFamily = null),
+                                colorScheme = LocalMaterialTheme.current,
+                                onBackClick = { showLyricsSheet = false },
+                                onSaveLyricsToFile = playerViewModel::saveLyricsToFile,
+                                onTranslateViaAi = { playerViewModel.translateLyricsViaAi() },
+                                onSeekTo = { playerViewModel.seekTo(it) },
+                                onPlayPause = {
+                                    playerViewModel.playPause()
+                                },
+                                onNext = onNext,
+                                onPrev = onPrevious,
+                                immersiveLyricsEnabled = immersiveLyricsEnabled,
+                                immersiveLyricsTimeout = immersiveLyricsTimeout,
+                                isImmersiveTemporarilyDisabled = isImmersiveTemporarilyDisabled,
+                                onSetImmersiveTemporarilyDisabled = { playerViewModel.setImmersiveTemporarilyDisabled(it) },
+                                isShuffleEnabled = isShuffleEnabled,
+                                repeatMode = repeatMode,
+                                isFavoriteProvider = isFavoriteProvider,
+                                onShuffleToggle = onShuffleToggle,
+                                onRepeatToggle = onRepeatToggle,
+                                onFavoriteToggle = onFavoriteToggle,
+                                showTrackInfo = false,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(24.dp))
+                            )
+                        }
+                    } else null
                 )
             } else {
                 FullPlayerPortraitContent(
@@ -931,7 +979,7 @@ fun FullPlayerContent(
         }
     }
     AnimatedVisibility(
-        visible = showLyricsSheet,
+        visible = showLyricsSheet && !isLandscape,
         enter = slideInVertically(
             initialOffsetY = { it / 5 },
             animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
@@ -1411,7 +1459,8 @@ private fun FullPlayerLandscapeContent(
     albumCoverSection: @Composable (Modifier) -> Unit,
     songMetadataSection: @Composable () -> Unit,
     playerProgressSection: @Composable () -> Unit,
-    controlsSection: @Composable () -> Unit
+    controlsSection: @Composable () -> Unit,
+    lyricsSection: @Composable (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -1438,11 +1487,21 @@ private fun FullPlayerLandscapeContent(
                     vertical = 0.dp
                 ),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceEvenly
+            verticalArrangement = if (lyricsSection != null) Arrangement.Top else Arrangement.SpaceEvenly
         ) {
             songMetadataSection()
-            playerProgressSection()
-            controlsSection()
+            if (lyricsSection != null) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(bottom = 12.dp)
+                ) {
+                    lyricsSection()
+                }
+            } else {
+                playerProgressSection()
+                controlsSection()
+            }
         }
     }
 }

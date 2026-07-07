@@ -494,6 +494,15 @@ fun AppNavigation(
                     )
                 }
             }
+            composable(
+                Screen.ExcludedDirectories.route,
+            ) {
+                ScreenWrapper(navController = navController, playerViewModel = playerViewModel, animatedVisibilityScope = this) {
+                    com.theveloper.pixelplay.presentation.components.FileExplorerScreen(
+                        navController = navController
+                    )
+                }
+            }
         }
     }
 }

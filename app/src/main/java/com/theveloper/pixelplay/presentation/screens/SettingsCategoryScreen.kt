@@ -169,7 +169,7 @@ import com.theveloper.pixelplay.data.model.Song
 import com.theveloper.pixelplay.data.model.LyricsSourcePreference
 import com.theveloper.pixelplay.presentation.components.CollapsibleCommonTopBar
 import com.theveloper.pixelplay.presentation.components.ExpressiveTopBarContent
-import com.theveloper.pixelplay.presentation.components.FileExplorerDialog
+
 import com.theveloper.pixelplay.presentation.components.MiniPlayerHeight
 import com.theveloper.pixelplay.presentation.model.SettingsCategory
 import com.theveloper.pixelplay.presentation.navigation.Screen
@@ -214,22 +214,13 @@ fun SettingsCategoryScreen(
     val currentAiModel by settingsViewModel.currentAiModel.collectAsStateWithLifecycle()
     val currentAiSystemPrompt by settingsViewModel.currentAiSystemPrompt.collectAsStateWithLifecycle()
     val aiProvider by settingsViewModel.aiProvider.collectAsStateWithLifecycle()
-    val currentPath by settingsViewModel.currentPath.collectAsStateWithLifecycle()
-    val directoryChildren by settingsViewModel.currentDirectoryChildren.collectAsStateWithLifecycle()
-    val availableStorages by settingsViewModel.availableStorages.collectAsStateWithLifecycle()
-    val selectedStorageIndex by settingsViewModel.selectedStorageIndex.collectAsStateWithLifecycle()
-    val isLoadingDirectories by settingsViewModel.isLoadingDirectories.collectAsStateWithLifecycle()
-    val isExplorerPriming by settingsViewModel.isExplorerPriming.collectAsStateWithLifecycle()
-    val isExplorerReady by settingsViewModel.isExplorerReady.collectAsStateWithLifecycle()
-    val isCurrentDirectoryResolved by settingsViewModel.isCurrentDirectoryResolved.collectAsStateWithLifecycle()
     val isSyncing by settingsViewModel.isSyncing.collectAsStateWithLifecycle()
     val syncProgress by settingsViewModel.syncProgress.collectAsStateWithLifecycle()
     val dataTransferProgress by settingsViewModel.dataTransferProgress.collectAsStateWithLifecycle()
     val paletteRegenerateTargets by playerViewModel.paletteRegenerationTargets.collectAsStateWithLifecycle()
-    val explorerRoot = settingsViewModel.explorerRoot()
 
     // Local State
-    var showExplorerSheet by remember { mutableStateOf(false) }
+
     var refreshRequested by remember { mutableStateOf(false) }
     var syncRequestObservedRunning by remember { mutableStateOf(false) }
     var syncIndicatorLabel by remember { mutableStateOf<String?>(null) }
@@ -423,8 +414,7 @@ fun SettingsCategoryScreen(
                                     leadingIcon = { Icon(Icons.Outlined.Folder, null, tint = MaterialTheme.colorScheme.secondary) },
                                     trailingIcon = { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.settings_cd_open), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                                     onClick = {
-                                        showExplorerSheet = true
-                                        settingsViewModel.openExplorer()
+                                        navController.navigate(Screen.ExcludedDirectories.route)
                                     }
                                 )
                                 SettingsItem(
@@ -1448,34 +1438,7 @@ fun SettingsCategoryScreen(
 
     BackupTransferProgressDialogHost(progress = dataTransferProgress)
 
-    // Dialogs
-    FileExplorerDialog(
-        visible = showExplorerSheet,
-        currentPath = currentPath,
-        directoryChildren = directoryChildren,
-        availableStorages = availableStorages,
-        selectedStorageIndex = selectedStorageIndex,
-        isLoading = isLoadingDirectories,
-        isPriming = isExplorerPriming,
-        isReady = isExplorerReady,
-        isCurrentDirectoryResolved = isCurrentDirectoryResolved,
-        isAtRoot = settingsViewModel.isAtRoot(),
-        rootDirectory = explorerRoot,
-        onNavigateTo = settingsViewModel::loadDirectory,
-        onNavigateUp = settingsViewModel::navigateUp,
-        onNavigateHome = { settingsViewModel.loadDirectory(explorerRoot) },
-        onToggleAllowed = settingsViewModel::toggleDirectoryAllowed,
-        onRefresh = settingsViewModel::refreshExplorer,
-        onStorageSelected = settingsViewModel::selectStorage,
-        onDone = {
-            settingsViewModel.applyPendingDirectoryRuleChanges()
-            showExplorerSheet = false
-        },
-        onDismiss = {
-            settingsViewModel.applyPendingDirectoryRuleChanges()
-            showExplorerSheet = false
-        }
-    )
+
 
     if (showPaletteRegenerateSheet) {
         ModalBottomSheet(

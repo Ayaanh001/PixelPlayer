@@ -253,6 +253,7 @@ fun LyricsSheet(
     onShuffleToggle: () -> Unit,
     onRepeatToggle: () -> Unit,
     onFavoriteToggle: () -> Unit,
+    showTrackInfo: Boolean = true,
     modifier: Modifier = Modifier,
     swipeThreshold: Dp = 100.dp,
     highlightZoneFraction: Float = 0.08f, // Reduced from 0.22 for less padding
@@ -705,36 +706,38 @@ fun LyricsSheet(
                     .fillMaxWidth()
             ) {
                 // Track Info Header (Fixed at top)
-                AnimatedContent(
-                    targetState = currentSong,
-                    transitionSpec = {
-                        (fadeIn(animationSpec = tween(300)) + 
-                         scaleIn(initialScale = 0.9f, animationSpec = tween(300)))
-                        .togetherWith(fadeOut(animationSpec = tween(300)))
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .zIndex(2f)
-                        .wrapContentWidth(),
-                    label = "headerAnimation"
-                ) { song ->
-                    LyricsTrackInfo(
-                        song = song,
+                if (showTrackInfo) {
+                    AnimatedContent(
+                        targetState = currentSong,
+                        transitionSpec = {
+                            (fadeIn(animationSpec = tween(300)) + 
+                             scaleIn(initialScale = 0.9f, animationSpec = tween(300)))
+                            .togetherWith(fadeOut(animationSpec = tween(300)))
+                        },
                         modifier = Modifier
                             .align(Alignment.TopStart)
-                            .padding(
-                                top = 4.dp, bottom = 24.dp, start = 18.dp, end = 18.dp
-                            )
-                            .background(
-                                color = backgroundColor,
-                                shape = CircleShape
-                            )
-                            .wrapContentWidth()
-                            .animateContentSize(), // Animate width changes
-                        backgroundColor = backgroundColor, // Distinct solid background
-                        contentColor = onBackgroundColor,
-                        isPlaying = isPlaying
-                    )
+                            .zIndex(2f)
+                            .wrapContentWidth(),
+                        label = "headerAnimation"
+                    ) { song ->
+                        LyricsTrackInfo(
+                            song = song,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(
+                                    top = 4.dp, bottom = 24.dp, start = 18.dp, end = 18.dp
+                                )
+                                .background(
+                                    color = backgroundColor,
+                                    shape = CircleShape
+                                )
+                                .wrapContentWidth()
+                                .animateContentSize(), // Animate width changes
+                            backgroundColor = backgroundColor, // Distinct solid background
+                            contentColor = onBackgroundColor,
+                            isPlaying = isPlaying
+                        )
+                    }
                 }
 
                 when (showSyncedLyrics) {
@@ -774,7 +777,10 @@ fun LyricsSheet(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(horizontal = 24.dp),
-                                contentPadding = PaddingValues(top = 130.dp, bottom = 100.dp),
+                                contentPadding = PaddingValues(
+                                    top = if (showTrackInfo) 130.dp else 24.dp,
+                                    bottom = if (showTrackInfo) 100.dp else 24.dp
+                                ),
                                 lines = synced,
                                 listState = syncedListState,
                                 playbackPositionFlow = playbackPositionFlow,
@@ -828,7 +834,7 @@ fun LyricsSheet(
                                 contentPadding = PaddingValues(
                                     start = 24.dp,
                                     end = 24.dp,
-                                    top = 130.dp,
+                                    top = if (showTrackInfo) 130.dp else 24.dp,
                                     bottom = 24.dp
                                 )
                             ) {
@@ -855,7 +861,7 @@ fun LyricsSheet(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp)
+                        .height(if (showTrackInfo) 130.dp else 40.dp)
                         .align(Alignment.TopCenter)
                         .background(
                             brush = Brush.verticalGradient(
@@ -880,7 +886,7 @@ fun LyricsSheet(
 
             // Controls Section (Auto-hide in immersive mode)
             AnimatedVisibility(
-                visible = !immersiveMode,
+                visible = !immersiveMode && showTrackInfo,
                 enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                 exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
             ) {
@@ -1092,7 +1098,7 @@ fun LyricsSheet(
 
        // Show Controls Button (Overlay)
        AnimatedVisibility(
-            visible = immersiveMode,
+            visible = immersiveMode && showTrackInfo,
             enter = fadeIn() + slideInVertically { it / 2 },
             exit = fadeOut() + slideOutVertically { it / 2 },
             modifier = Modifier
